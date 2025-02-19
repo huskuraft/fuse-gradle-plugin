@@ -1,0 +1,92 @@
+plugins {
+    id 'groovy'
+    id 'java'
+    id 'idea'
+    id 'java-gradle-plugin'
+    id 'com.gradleup.shadow' version '8.3.6'
+    id 'com.gradle.plugin-publish' version '1.2.1'
+    id "com.diffplug.spotless" version "6.13.0"
+}
+apply plugin: 'maven-publish'
+
+group = 'dev.huskuraft.fuse'
+version = plugin_version
+description = "Gradle plugin to merge multiple jars into a single one"
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+configurations {
+    shadeMe
+    implementation.extendsFrom shadeMe
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url "https://maven.firstdarkdev.xyz/releases"
+    }
+}
+
+dependencies {
+    implementation gradleApi()
+    testImplementation 'org.jetbrains:annotations:24.0.0'
+
+    // Shaded Deps
+    shadeMe 'org.jetbrains:annotations:24.0.1'
+    shadeMe 'commons-io:commons-io:2.14.0'
+
+    shadeMe('com.hypherionmc:jarmanager:1.0.5') {
+        exclude group: 'org.ow2.asm'
+    }
+    shadeMe 'org.ow2.asm:asm:9.5'
+    shadeMe 'org.ow2.asm:asm-commons:9.5'
+    shadeMe 'org.apache.commons:commons-compress:1.26.0'
+}
+
+shadowJar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    configurations = [project.configurations.named("shadeMe").get()]
+    archiveClassifier.set(null)
+}
+
+gradlePlugin {
+    plugins {
+        fusePlugin {
+            id = 'dev.huskuraft.fuse'
+            description = project.description
+            displayName = 'FuseJar'
+            version = project.version
+            implementationClass = "dev.huskuraft.gradle.plugins.fuse.FusePlugin"
+        }
+    }
+}
+
+jar {
+    manifest {
+        attributes([
+            'Timestamp'               : System.currentTimeMillis(),
+            'Specification-Title'     : project.archivesBaseName,
+            'Specification-Version'   : project.version,
+            'Implementation-Title'    : project.archivesBaseName,
+            'Implementation-Version'  : project.version,
+            'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+            'Built-On-Java'           : "${System.getProperty('java.vm.version')} (${System.getProperty('java.vm.vendor')})"
+        ])
+    }
+}
+
+artifacts {
+    archives shadowJar
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            artifactId = 'fuse-gradle-plugin'
+        }
+    }
+}
