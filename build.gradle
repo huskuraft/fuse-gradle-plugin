@@ -87,6 +87,7 @@ publishing {
     publications {
         maven(MavenPublication) {
             artifactId = 'fuse-gradle-plugin'
+            artifact shadowJar
         }
     }
 }
